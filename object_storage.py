@@ -14,6 +14,7 @@ from dateutil.parser import parse
 # specific to your setup.
 # The bucket will be created in your account if it does not already exist
 backup_bucket = os.environ['MYBUCKETNAME']
+key_name = os.environ['MYKEYNAME']
 access_key = os.environ['MYACCESSKEY']
 secret_key = os.environ['MYSECRETKEY']
 endpoint_url = os.environ['MYENDPOINTURL']
@@ -51,18 +52,18 @@ class Space():
     def upload_files(self, files):
         for filename in files:
             self.client.upload_file(Filename=filename, Bucket=self.bucket,
-                                    Key=os.path.basename(filename))
+                                    Key=key_name + os.path.basename(filename))
             print("Uploaded {} to \"{}\"".format(filename, self.bucket))
 
     def remove_file(self, filename):
         self.client.delete_object(Bucket=self.bucket,
-                                  Key=os.path.basename(filename))
+                                  Key=key_name + os.path.basename(filename))
 
     def prune_backups(self, days_to_keep):
         oldest_day = datetime.now(pytz.utc) - timedelta(days=int(days_to_keep))
         try:
             # Create an iterator to page through results
-            page_iterator = self.paginator.paginate(Bucket=self.bucket)
+            page_iterator = self.paginator.paginate(Bucket=self.bucket, Prefix=key_name, Delimiter='/')
             # Collect objects older than the specified date
             objects_to_prune = [filename['Key'] for page in page_iterator
                                 for filename in page['Contents']
@@ -76,7 +77,7 @@ class Space():
 
     def download_file(self, filename):
         self.client.download_file(Bucket=self.bucket,
-                                  Key=filename, Filename=filename)
+                                  Key=filename, Filename=os.path.basename(filename))
 
     def get_day(self, day_to_get):
         try:
@@ -90,7 +91,7 @@ class Space():
         print("Looking for objects from {}".format(print_date))
         try:
             # create an iterator to page through results
-            page_iterator = self.paginator.paginate(Bucket=self.bucket)
+            page_iterator = self.paginator.paginate(Bucket=self.bucket, Prefix=key_name, Delimiter='/')
             objects_to_grab = [filename['Key'] for page in page_iterator
                                for filename in page['Contents']
                                if day_string in filename['Key']]
